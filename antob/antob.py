@@ -100,7 +100,15 @@ def convert_to_razor(path,file_contents):
 
 def create_project_file(dest):
     model = "text-davinci-002"
-    prompt = "create a blazor webassembly .csproj file using net7 for <TargetFramework> and use version '7.0.0' for any packages starting with 'Microsoft.AspNetCore.Components'. Make sure the following packages are included 'Microsoft.AspNetCore.Components' and 'Microsoft.AspNetCore.Components.Web' and 'Microsoft.AspNetCore.Components.WebAssembly'. Do not include any xml statements or any project references. also format the result with appropriate line endings"
+    prompt = [
+    "create a blazor webassembly .csproj file",
+    "use net7 for <TargetFramework>",
+    "use version '7.0.0' for any packages starting with 'Microsoft.AspNetCore.Components'",
+    "Make sure the following packages are included 'Microsoft.AspNetCore.Components', 'Microsoft.AspNetCore.Components.Web','Microsoft.AspNetCore.Components.WebAssembly'",
+    "Do not include any xml statements or any project references",
+    "Format the result with appropriate line endings"
+    ]   
+
     destination = os.path.join(dest, os.path.basename(dest) + ".csproj" )
     completions = openai.Completion.create(
                 engine=model,
@@ -127,8 +135,8 @@ def main():
 
     openai.api_key = os.environ["OPENAI_API_KEY"]
 
-    #create_project_file(dest_dir)
-    process_files(src_dir,dest_dir)
+    create_project_file(dest_dir)
+    #process_files(src_dir,dest_dir)
 
 if __name__ == '__main__':
     main()
