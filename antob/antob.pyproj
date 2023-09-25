@@ -4,13 +4,14 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>8c1c049b-51fb-4b79-b112-fa0c09f09a06</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>antob.py</StartupFile>
+    <StartupFile>inference_wizardcoder.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <Name>antob</Name>
     <RootNamespace>antob</RootNamespace>
+    <InterpreterId>CondaEnv|CondaEnv|tg</InterpreterId>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -22,6 +23,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="antob.py" />
+    <Compile Include="inference_wizardcoder.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="readme.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="CondaEnv|CondaEnv|tg" />
+    <InterpreterReference Include="Global|PythonCore|3.11" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

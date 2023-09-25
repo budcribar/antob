@@ -1,9 +1,18 @@
+# pip install selenium  
+
+
 from msilib import Directory
 import os
 import shutil
 import fnmatch
-import openai
+#import openai
 
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.keys import Keys
+
+# https://www.youtube.com/watch?v=Ud_86SaCTrM   Install CodeLLama locally
 
 def convert_to_blazor_name(filename):
     # Replace '-' with '_' and make the first letter of each segment uppercase
@@ -83,6 +92,31 @@ def convert_to_cs(path,file_contents):
     message = completions.choices[0].text
     return message
 
+# command window
+# cd D:\anaconda3\condabin>
+
+# conda.bat activate tg
+# cd C:\Users\Arti_BlizzardPV3\source\repos\text-generation-webui
+# python server.py
+# select model
+# load model
+# max seq len 12800
+# max_new_tokens 4096
+# temperature 0.01
+
+# function to execute c# compiler
+import os
+from subprocess import check_output, CalledProcessError
+def compile_cs(path):    
+    try:
+        output = check_output(['csc', path])
+        if not output.strip():
+            return []
+        else:
+            return [line for line in output.decode().split('\n') if 'error' in line]
+    except CalledProcessError as e:
+        return ['Compilation failed with exit code {}'.format(e.returncode)]
+
 def convert_to_razor(path,file_contents):
     model = "text-davinci-002"
     prompt = "Convert the following angular html code into razor:"
@@ -135,10 +169,20 @@ def main():
     dest_dir = 'C:/Users/Arti_BlizzardPV3/source/repos/BlazorExample1'
     #copy_and_rename(src_dir, dest_dir)
 
-    openai.api_key = os.environ["OPENAI_API_KEY"]
+    #openai.api_key = os.environ["OPENAI_API_KEY"]
 
-    create_project_file(dest_dir)
+    #create_project_file(dest_dir)
     #process_files(src_dir,dest_dir)
+    cwd = os.getcwd()
+
+    try:
+      driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+      driver.get("http://127.0.0.1:7860/")
+      
+      
+    # Your code to navigate and interact with web pages
+    except Exception as e:
+      print(f"An error occurred: {e}")
 
 if __name__ == '__main__':
     main()
