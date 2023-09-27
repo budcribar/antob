@@ -1,19 +1,34 @@
-# pip install selenium  
 
-
+from msilib.schema import File
+import sys
+import os
+import fire
+import torch
+import transformers
+import json
+import jsonlines
 from msilib import Directory
 import os
 import shutil
 import fnmatch
-#import openai
 
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.keys import Keys
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
+
+from inference_wizardcoder import evaluate
 
 # https://www.youtube.com/watch?v=Ud_86SaCTrM   Install CodeLLama locally
 
+if torch.cuda.is_available():
+    device = "cuda"
+else:
+    device = "cpu"
+
+try:
+    if torch.backends.mps.is_available():
+        device = "mps"
+except:
+    pass
+    
 def convert_to_blazor_name(filename):
     # Replace '-' with '_' and make the first letter of each segment uppercase
     parts = filename.split('-')
@@ -28,7 +43,7 @@ def get_blazor_extension(extension):
     return extension
 
 
-def process_files(src, dest):
+def process_files(src, dest,tokenizer,model):
     # Ensure the destination directory exists
     os.makedirs(dest, exist_ok=True)
 
@@ -66,7 +81,7 @@ def process_files(src, dest):
                file_contents = f.read()
 
             if destination.endswith('.cs'):
-                message = convert_to_cs(source,file_contents)
+                message = convert_to_cs(source,file_contents,tokenizer,model)
             elif destination.endswith('.razor'):
                 message = convert_to_razor(source,file_contents)           
             else:
@@ -77,21 +92,22 @@ def process_files(src, dest):
 
 
 
-def convert_to_cs(path,file_contents):
-    model = "text-davinci-002"
-    prompt = "Convert the following angular typescript code into blazor c# using the following hints (1.Add appropriate using statements if needed. 2. Do not include @Component statements):"
+def convert_to_cs(path,file_contents,tokenizer,model):
+    print("converting{path}") 
+    
+    prompt = "Convert the following angular typescript code into blazor c# using the following hints (1.Add appropriate using statements if needed. 2. Do not include @Component statements):" + file_contents
 
-    completions = openai.Completion.create(
-                engine=model,
-                prompt=prompt + file_contents,
-                max_tokens=1024,
-                n=1,
-                stop=None,
-                temperature=0.5,
-            )
-    message = completions.choices[0].text
-    return message
+    _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
 
+    final_output = _output[0].split("### Response:")[1].strip()
+    return final_output
+
+def convert_to_razor(path,file_contents,tokenizer,model):
+    
+    prompt = "Convert the following angular html code into razor:" + file_contents
+    _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
+    final_output = _output[0].split("### Response:")[1].strip()
+    return final_output
 # command window
 # cd D:\anaconda3\condabin>
 
@@ -117,20 +133,7 @@ def compile_cs(path):
     except CalledProcessError as e:
         return ['Compilation failed with exit code {}'.format(e.returncode)]
 
-def convert_to_razor(path,file_contents):
-    model = "text-davinci-002"
-    prompt = "Convert the following angular html code into razor:"
 
-    completions = openai.Completion.create(
-                engine=model,
-                prompt=prompt + file_contents,
-                max_tokens=1024,
-                n=1,
-                stop=None,
-                temperature=0.5,
-            )
-    message = completions.choices[0].text
-    return message
 
 def create_project_file(dest):
     model = "text-davinci-002"
@@ -159,30 +162,98 @@ def create_project_file(dest):
         f.write(message)
     
 
+def evaluate(
+        batch_data,
+        tokenizer,
+        model,
+        input=None,
+        temperature=1,
+        top_p=0.9,
+        top_k=40,
+        num_beams=1,
+        max_new_tokens=2048,
+        **kwargs,
+):
+    prompts = generate_prompt(batch_data, input)
+    #inputs = tokenizer(prompts, return_tensors="pt", /*max_length=512,*/ truncation=True, padding=True)
+    inputs = tokenizer(prompts, return_tensors="pt",max_length=512, truncation=True, padding=True)
+    input_ids = inputs["input_ids"].to(device)
+    generation_config = GenerationConfig(
+        do_sample=True,
+        temperature=temperature,
+        top_p=top_p,
+        top_k=top_k,
+        num_beams=num_beams,
+        eos_token_id=tokenizer.eos_token_id,
+        pad_token_id=tokenizer.pad_token_id,
+        **kwargs,
+    )
+    with torch.no_grad():
+        generation_output = model.generate(
+            input_ids=input_ids,
+            generation_config=generation_config,
+            return_dict_in_generate=True,
+            output_scores=True,
+            max_new_tokens=max_new_tokens,
+        )
+    s = generation_output.sequences
+    output = tokenizer.batch_decode(s, skip_special_tokens=True)
+    return output
 
+def generate_prompt(instruction, input=None):
+    return f"""Below is an instruction that describes a task. Write a response that appropriately completes the request.
 
+### Instruction:
+{instruction}
+
+### Response:"""
 
 def main():
+    load_8bit: bool = False
+    base_model: str = "C:/Users/Arti_BlizzardPV3/source/repos/text-generation-webui/models/TheBloke_WizardCoder-Python-13B-V1.0-GPTQ"
+    input_data_path = "Input.jsonl"
+    output_data_path = "Output.jsonl"
     #source = input("Enter source directory: ")
     #destination = input("Enter destination directory: ")
     src_dir = 'C:/Users/Arti_BlizzardPV3/source/repos/Example1'
     dest_dir = 'C:/Users/Arti_BlizzardPV3/source/repos/BlazorExample1'
+
+   
+
+
     #copy_and_rename(src_dir, dest_dir)
 
     #openai.api_key = os.environ["OPENAI_API_KEY"]
 
     #create_project_file(dest_dir)
-    #process_files(src_dir,dest_dir)
-    cwd = os.getcwd()
+    tokenizer = AutoTokenizer.from_pretrained(base_model,max_seq_len=12800)
+    
+    print("start loading model...") 
+    if device == "cuda":
+        model = AutoModelForCausalLM.from_pretrained(
+            base_model,
+            load_in_8bit=load_8bit,
+            torch_dtype=torch.float16,
+            device_map="auto",
+        )
+    elif device == "mps":
+        model = AutoModelForCausalLM.from_pretrained(
+            base_model,
+            device_map={"": device},
+            torch_dtype=torch.float16,
+        )
 
-    try:
-      driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-      driver.get("http://127.0.0.1:7860/")
-      
-      
-    # Your code to navigate and interact with web pages
-    except Exception as e:
-      print(f"An error occurred: {e}")
+    print("end loading model...") 
+    model.config.pad_token_id = tokenizer.pad_token_id
+    
+    model.eval()
+    if torch.__version__ >= "2" and sys.platform != "win32":
+        model = torch.compile(model)
+
+    process_files(src_dir,dest_dir,tokenizer,model)
+   
+
+    
 
 if __name__ == '__main__':
     main()

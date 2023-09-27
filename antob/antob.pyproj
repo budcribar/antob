@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>8c1c049b-51fb-4b79-b112-fa0c09f09a06</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>inference_wizardcoder.py</StartupFile>
+    <StartupFile>antob.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
