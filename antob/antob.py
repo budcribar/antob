@@ -1,4 +1,17 @@
 
+# command window
+# cd D:\anaconda3\condabin>
+
+# conda.bat activate tg
+# cd C:\Users\Arti_BlizzardPV3\source\repos\text-generation-webui
+# python server.py
+# select model
+# load model
+# max seq len 12800
+# max_new_tokens 4096
+# temperature 0.01
+
+
 from msilib.schema import File
 import sys
 import os
@@ -12,7 +25,7 @@ import os
 import shutil
 import fnmatch
 
-from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig,pipeline
 
 from inference_wizardcoder import evaluate
 
@@ -67,8 +80,8 @@ def process_files(src, dest,tokenizer,model):
             if f in skip_files or fnmatch.fnmatch(f, 'tsconfig*.json'):
                 continue
 
-            if f not in convert_files:
-                continue
+            #if f not in convert_files:
+            #    continue
 
             # Convert the file name to the Blazor naming convention
             file_name, file_ext = os.path.splitext(f)
@@ -83,7 +96,7 @@ def process_files(src, dest,tokenizer,model):
             if destination.endswith('.cs'):
                 message = convert_to_cs(source,file_contents,tokenizer,model)
             elif destination.endswith('.razor'):
-                message = convert_to_razor(source,file_contents)           
+                message = convert_to_razor(source,file_contents,tokenizer,model)           
             else:
                 message = file_contents
 
@@ -93,9 +106,9 @@ def process_files(src, dest,tokenizer,model):
 
 
 def convert_to_cs(path,file_contents,tokenizer,model):
-    print("converting{path}") 
+    print("converting",path) 
     
-    prompt = "Convert the following angular typescript code into blazor c# using the following hints (1.Add appropriate using statements if needed. 2. Do not include @Component statements):" + file_contents
+    prompt = "Convert the following angular typescript code into a blazor code behind c# file using the following hints (1.Add appropriate using statements if needed. 2. Do not include @Component statements 3. Do not generate the html as this will be done seperately):\n" + file_contents
 
     _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
 
@@ -103,22 +116,12 @@ def convert_to_cs(path,file_contents,tokenizer,model):
     return final_output
 
 def convert_to_razor(path,file_contents,tokenizer,model):
-    
-    prompt = "Convert the following angular html code into razor:" + file_contents
+    print("converting",path) 
+    prompt = "Convert the following angular html code into razor:\n" + file_contents
     _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
     final_output = _output[0].split("### Response:")[1].strip()
     return final_output
-# command window
-# cd D:\anaconda3\condabin>
 
-# conda.bat activate tg
-# cd C:\Users\Arti_BlizzardPV3\source\repos\text-generation-webui
-# python server.py
-# select model
-# load model
-# max seq len 12800
-# max_new_tokens 4096
-# temperature 0.01
 
 # function to execute c# compiler
 import os
@@ -176,7 +179,8 @@ def evaluate(
 ):
     prompts = generate_prompt(batch_data, input)
     #inputs = tokenizer(prompts, return_tensors="pt", /*max_length=512,*/ truncation=True, padding=True)
-    inputs = tokenizer(prompts, return_tensors="pt",max_length=512, truncation=True, padding=True)
+    #inputs = tokenizer(prompts, return_tensors="pt",max_length=512, truncation=True, padding=True)
+    inputs = tokenizer(prompts, return_tensors="pt")
     input_ids = inputs["input_ids"].to(device)
     generation_config = GenerationConfig(
         do_sample=True,
@@ -226,15 +230,17 @@ def main():
     #openai.api_key = os.environ["OPENAI_API_KEY"]
 
     #create_project_file(dest_dir)
-    tokenizer = AutoTokenizer.from_pretrained(base_model,max_seq_len=12800)
+    #tokenizer = AutoTokenizer.from_pretrained(base_model,max_seq_len=12800)
+    tokenizer = AutoTokenizer.from_pretrained(base_model,use_fast=True)
     
     print("start loading model...") 
     if device == "cuda":
         model = AutoModelForCausalLM.from_pretrained(
             base_model,
-            load_in_8bit=load_8bit,
             torch_dtype=torch.float16,
             device_map="auto",
+            revision="main",
+            load_in_8bit=load_8bit, 
         )
     elif device == "mps":
         model = AutoModelForCausalLM.from_pretrained(
