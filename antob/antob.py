@@ -13,6 +13,10 @@
 
 # 9/27/2023 76 errors
 # 9/27/2023 117 errors
+# 9/27 43 errors
+# 9/27 41 errors
+
+
 # Need to add <PackageReference Include="Newtonsoft.Json" Version="13.0.3" /> to csproj file
 from msilib.schema import File
 import sys
@@ -97,7 +101,7 @@ def process_files(src, dest,tokenizer,model):
             destination = os.path.join(dest, relative_path, blazor_name)
             
             if(f=="index.html"):
-                destination = "index.html"
+                destination = os.path.join(dest, relative_path, "index.html")
 
             with open(source, 'r', encoding='utf-8') as f:
                file_contents = f.read()
@@ -105,12 +109,15 @@ def process_files(src, dest,tokenizer,model):
             if destination.endswith('.cs'):
                 message = convert_to_cs(source,file_contents,tokenizer,model)
             elif destination.endswith('.razor'):
-                message = convert_to_razor(source,file_contents,tokenizer,model)           
+                message = convert_to_razor(source,file_contents,tokenizer,model)       
+            elif destination.endswith('.html'):
+                message = convert_to_razor(source,file_contents,tokenizer,model)      
             else:
                 message = file_contents
 
-            with open(destination, 'w', encoding='utf-8') as f:
-                f.write(message)
+            if(message != None):
+                with open(destination, 'w', encoding='utf-8') as f:
+                    f.write(message)
 
 def get_csharp_code(string):
   """Extracts the C# code between ```csharp` and ````` tags.
@@ -126,24 +133,41 @@ def get_csharp_code(string):
   if match:
     return match.group(1)
   else:
-    return None
+    return string
+
+def get_razor_code(string):
+  """Extracts the C# code between ```razor` and ````` tags.
+
+  Args:
+    string: The string to extract the Razor code from.
+
+  Returns:
+    A string containing the Razorcode, or None if no Razor code is found.
+  """
+
+  match = re.search(r"`razor\n(.*?)\n`", string, re.DOTALL)
+  if match:
+    return match.group(1)
+  else:
+    return string
 
 def convert_to_cs(path,file_contents,tokenizer,model):
     print("converting",path) 
     
-    prompt = "Convert the following Angular TypeScript code into a Blazor code behind C# file using the following hint: \nHint: Do not generate the HTML portion or the `Here's the equivalent Blazor code behind c# file:` statement.\n"+ file_contents
+    prompt = "Convert the following Angular TypeScript code into a Blazor code behind C# file using the following hint: \n[Hint: Do not generate the HTML portion or the `Here's the equivalent Blazor code behind c# file:` statement.]\n[Hint: Add the using statements such as Microsoft.JSInterop,System.Linq,Systems.Collections.Generic,System.Threading.Tasks,System,System.Net.Http,System.Reactive.Linq where appropriate]\n[Hint: No statements starting with @ should be in the code behind]\n"+ file_contents
    
     _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
 
     final_output = _output[0].split("### Response:")[1].strip()
-    return final_output
+    return get_csharp_code(final_output)
+   
 
 def convert_to_razor(path,file_contents,tokenizer,model):
     print("converting",path) 
-    prompt = "Convert the following Angular HTML code into Razor using the following hint:\n[Hint: The input code is Angular HTML code.]\n[Hint: ngIf converts to @if]\n " + file_contents
+    prompt = "Convert the following Angular HTML code into a Blazor Razor file using the following hint:\n[Hint: The input code is Angular HTML code.]\n[Hint: ngIf converts to @if]\n[Hint: Do not generate the @code section]\n" + file_contents
     _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
     final_output = _output[0].split("### Response:")[1].strip()
-    return get_csharp_code(final_output)
+    return get_razor_code(final_output)
 
 
 # function to execute c# compiler
