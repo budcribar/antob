@@ -11,7 +11,9 @@
 # max_new_tokens 4096
 # temperature 0.01
 
-
+# 9/27/2023 76 errors
+# 9/27/2023 117 errors
+# Need to add <PackageReference Include="Newtonsoft.Json" Version="13.0.3" /> to csproj file
 from msilib.schema import File
 import sys
 import os
@@ -24,6 +26,7 @@ from msilib import Directory
 import os
 import shutil
 import fnmatch
+import re
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig,pipeline
 
@@ -83,12 +86,18 @@ def process_files(src, dest,tokenizer,model):
             #if f not in convert_files:
             #    continue
 
+          
+            
+
             # Convert the file name to the Blazor naming convention
             file_name, file_ext = os.path.splitext(f)
             blazor_name = convert_to_blazor_name(file_name) + get_blazor_extension(file_ext)
 
             source = os.path.join(root, f)
             destination = os.path.join(dest, relative_path, blazor_name)
+            
+            if(f=="index.html"):
+                destination = "index.html"
 
             with open(source, 'r', encoding='utf-8') as f:
                file_contents = f.read()
@@ -103,13 +112,27 @@ def process_files(src, dest,tokenizer,model):
             with open(destination, 'w', encoding='utf-8') as f:
                 f.write(message)
 
+def get_csharp_code(string):
+  """Extracts the C# code between ```csharp` and ````` tags.
 
+  Args:
+    string: The string to extract the C# code from.
+
+  Returns:
+    A string containing the C# code, or None if no C# code is found.
+  """
+
+  match = re.search(r"`csharp\n(.*?)\n`", string, re.DOTALL)
+  if match:
+    return match.group(1)
+  else:
+    return None
 
 def convert_to_cs(path,file_contents,tokenizer,model):
     print("converting",path) 
     
-    prompt = "Convert the following angular typescript code into a blazor code behind c# file using the following hints (1.Add appropriate using statements if needed. 2. Do not include @Component statements 3. Do not generate the html as this will be done seperately):\n" + file_contents
-
+    prompt = "Convert the following Angular TypeScript code into a Blazor code behind C# file using the following hint: \nHint: Do not generate the HTML portion or the `Here's the equivalent Blazor code behind c# file:` statement.\n"+ file_contents
+   
     _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
 
     final_output = _output[0].split("### Response:")[1].strip()
@@ -117,10 +140,10 @@ def convert_to_cs(path,file_contents,tokenizer,model):
 
 def convert_to_razor(path,file_contents,tokenizer,model):
     print("converting",path) 
-    prompt = "Convert the following angular html code into razor:\n" + file_contents
+    prompt = "Convert the following Angular HTML code into Razor using the following hint:\n[Hint: The input code is Angular HTML code.]\n[Hint: ngIf converts to @if]\n " + file_contents
     _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
     final_output = _output[0].split("### Response:")[1].strip()
-    return final_output
+    return get_csharp_code(final_output)
 
 
 # function to execute c# compiler
