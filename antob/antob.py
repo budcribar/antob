@@ -15,6 +15,7 @@
 # 9/27/2023 117 errors
 # 9/27 43 errors
 # 9/27 41 errors
+# 9/28 17 errors
 
 
 # Need to add <PackageReference Include="Newtonsoft.Json" Version="13.0.3" /> to csproj file
@@ -154,7 +155,13 @@ def get_razor_code(string):
 def convert_to_cs(path,file_contents,tokenizer,model):
     print("converting",path) 
     
-    prompt = "Convert the following Angular TypeScript code into a Blazor code behind C# file using the following hint: \n[Hint: Do not generate the HTML portion or the `Here's the equivalent Blazor code behind c# file:` statement.]\n[Hint: Add the using statements such as Microsoft.JSInterop,System.Linq,Systems.Collections.Generic,System.Threading.Tasks,System,System.Net.Http,System.Reactive.Linq where appropriate]\n[Hint: No statements starting with @ should be in the code behind]\n"+ file_contents
+    prompt = "Convert the following Angular TypeScript code into a Blazor code behind C# file using the following hints: \n" + \
+    "[Hint: Do not generate the HTML portion or the `Here's the equivalent Blazor code behind c# file:` statement.]\n" + \
+    "[Hint: Add the using statements such as Microsoft.JSInterop,System.Linq,Systems.Collections.Generic,System.Threading.Tasks,System,System.Net.Http,System.Reactive.Linq, Microsoft.AspNetCore.Components where appropriate]\n" +\
+    "[Hint: No statements starting with @ should be in the code behind]\n"+ \
+    "[Hint: Make sure to add the # comment character to any lines that are meant as directions or examples and are not part of the generated class]\n"+ \
+    "[Hint: Use the same namespace in all of the generated files]\n"+ \
+    file_contents
    
     _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
 
@@ -164,7 +171,11 @@ def convert_to_cs(path,file_contents,tokenizer,model):
 
 def convert_to_razor(path,file_contents,tokenizer,model):
     print("converting",path) 
-    prompt = "Convert the following Angular HTML code into a Blazor Razor file using the following hint:\n[Hint: The input code is Angular HTML code.]\n[Hint: ngIf converts to @if]\n[Hint: Do not generate the @code section]\n" + file_contents
+    prompt = "Convert the following Angular HTML code into a Blazor Razor file using the following hints:\n" + \
+    "[Hint: The input code is Angular HTML code and the output is Blazor html code using Razor syntax]\n" + \
+    "[Hint: ngIf converts to @if]\n"+\
+    "[Hint: The output should not include any @code sections]\n" + \
+    file_contents
     _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
     final_output = _output[0].split("### Response:")[1].strip()
     return get_razor_code(final_output)
