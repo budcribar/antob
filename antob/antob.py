@@ -1,13 +1,17 @@
 
-# command window
-# cd D:\anaconda3\condabin>
+# TheBloke/WizardCoder-Python-34B-V1.0-GGUF
+#wizardcoder-python-34b-v1.0.Q4_K_M.gguf
 
-# conda.bat activate tg
-# cd C:\Users\Arti_BlizzardPV3\source\repos\text-generation-webui
+# command window
+# cd C:\ProgramData\anaconda3\condabin
+# pip install fire
+# pip install jsonlines
+# conda activate tg
+# cd C:\Users\budcr\source\repos\text-generation-webui
 # python server.py
 # select model
 # load model
-# max seq len 12800
+# max seq len 12800 -> with new card and memory max_seq_len 9216
 # max_new_tokens 4096
 # temperature 0.01
 
@@ -49,12 +53,28 @@ try:
         device = "mps"
 except:
     pass
-    
+
 def convert_to_blazor_name(filename):
-    # Replace '-' with '_' and make the first letter of each segment uppercase
-    parts = filename.split('-')
-    blazor_name = ''.join(part.capitalize() for part in parts)
-    return blazor_name
+    # Replace '/' with '\' for Windows file paths
+    filename = filename.replace('/', '\\')
+    # Split the filename on '\'
+    parts = filename.split('\\')
+    # Get the last part of the filename
+    last_part = parts[-1]
+    # Split the last part on '-'
+    segments = last_part.split('-')
+    # Capitalize the first letter of each segment and join them
+    blazor_name = ''.join(segment.capitalize() for segment in segments)
+    # Replace the last part of the filename with the new name
+    parts[-1] = blazor_name
+    # Join the parts back together
+    return '\\'.join(parts)
+
+# def convert_to_blazor_name(filename):
+#     # Replace '-' with '_' and make the first letter of each segment uppercase
+#     parts = filename.split('-')
+#     blazor_name = ''.join(part.capitalize() for part in parts)
+#     return blazor_name
 
 def get_blazor_extension(extension):
     if extension == '.html':
@@ -68,18 +88,19 @@ def process_files(src, dest,tokenizer,model):
     # Ensure the destination directory exists
     os.makedirs(dest, exist_ok=True)
 
-    skip_files = ['angular.json', 'package.json', 'editorconfig']
+    skip_files = ['angular.json', 'package.json', 'editorconfig','.gitignore']
     convert_files = ['cart.component.ts']
     
     for root, dirs, files in os.walk(src):
         # Determine the relative path to the current directory
-        relative_path = os.path.relpath(root, src)
+        relative_path = convert_to_blazor_name(os.path.relpath(root, src))
 
         if 'e2e' in dirs:
             # Remove 'e2edef' from the list of directories to prevent it from being copied
             dirs.remove('e2e')
 
         for d in dirs:
+            d = convert_to_blazor_name(d)
             # Create the corresponding directory in the destination folder
             os.makedirs(os.path.join(dest, relative_path, d), exist_ok=True)
 
@@ -101,16 +122,44 @@ def process_files(src, dest,tokenizer,model):
             source = os.path.join(root, f)
             destination = os.path.join(dest, relative_path, blazor_name)
             
+            if(file_ext == ".razor"):
+                continue
+
             if(f=="index.html"):
                 destination = os.path.join(dest, relative_path, "index.html")
 
             with open(source, 'r', encoding='utf-8') as f:
                file_contents = f.read()
-
+               
             if destination.endswith('.cs'):
-                message = convert_to_cs(source,file_contents,tokenizer,model)
-            elif destination.endswith('.razor'):
-                message = convert_to_razor(source,file_contents,tokenizer,model)       
+                html_filename = os.path.join(root, file_name + ".html")
+                # Check if the file exists
+                if os.path.exists(html_filename):
+                    # If the file exists, open and read it
+                    with open(html_filename, 'r', encoding='utf-8') as f:
+                        html_contents = f.read()
+                        message = convert_angular_component(source,file_contents,html_contents,tokenizer,model)
+                        if(message != None):
+                            # write the c# file
+                            with open(destination, 'w', encoding='utf-8') as f:
+                                f.write(message[0])
+                            # write the razor file
+                            file_name, file_ext = os.path.splitext(os.path.basename(html_filename))
+                            blazor_name = convert_to_blazor_name(file_name) + get_blazor_extension(file_ext)   
+                            destination = os.path.join(dest, relative_path, blazor_name)
+                            with open(destination, 'w', encoding='utf-8') as f:
+                                f.write(message[1])
+                else:
+                    # If the file does not exist, assign an empty string
+                    html_contents = ""
+                    message = convert_to_cs(source,file_contents,tokenizer,model)
+                    if(message != None):
+                        # write the c# file
+                        with open(destination, 'w', encoding='utf-8') as f:
+                            f.write(message)
+                continue
+            #elif destination.endswith('.razor'):
+            #    message = convert_to_razor(source,file_contents,tokenizer,model)       
             elif destination.endswith('.html'):
                 message = convert_to_razor(source,file_contents,tokenizer,model)      
             else:
@@ -152,21 +201,106 @@ def get_razor_code(string):
   else:
     return string
 
-def convert_to_cs(path,file_contents,tokenizer,model):
+def convert_to_cs(path,typescript,tokenizer,model):
     print("converting",path) 
     
-    prompt = "Convert the following Angular TypeScript code into a Blazor code behind C# file using the following hints: \n" + \
-    "[Hint: Do not generate the HTML portion or the `Here's the equivalent Blazor code behind c# file:` statement.]\n" + \
-    "[Hint: Add the using statements such as Microsoft.JSInterop,System.Linq,Systems.Collections.Generic,System.Threading.Tasks,System,System.Net.Http,System.Reactive.Linq, Microsoft.AspNetCore.Components where appropriate]\n" +\
-    "[Hint: No statements starting with @ should be in the code behind]\n"+ \
-    "[Hint: Make sure to add the # comment character to any lines that are meant as directions or examples and are not part of the generated class]\n"+ \
-    "[Hint: Use the same namespace in all of the generated files]\n"+ \
-    file_contents
-   
+    prompt = f"""You are an expert in Typescript,Angular,C#, and Blazor. Your task is to convert an Angular  typescript file to an equilivelent Blazor C# file. \
+    Use the following hints during the conversion process \
+    [Hint: Add the using statements such as Microsoft.JSInterop,System.Linq,Systems.Collections.Generic,System.Threading.Tasks,System,System.Net.Http,System.Reactive.Linq, Microsoft.AspNetCore.Components,System.Net.Http.Json,Microsoft.AspNetCore.Components.WebAssembly.Hosting where appropriate]\
+    [Hint: Make sure to add the # comment character to any lines that are meant as directions or examples and are not part of the converted component] \
+    [Hint: Use the same namespace in all of the generated files] \
+     Here is the typescript for you to convert to C# \
+     ```typescript \
+    {typescript} \
+    ``` \
+    
+    Please delimit the output C# with the following tag \
+     ```csharp \
+     ``` \
+    """
+    
     _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
 
     final_output = _output[0].split("### Response:")[1].strip()
     return get_csharp_code(final_output)
+   
+  
+
+def convert_angular_component(path,typescript,html,tokenizer,model):
+    print("converting",path) 
+    
+    prompt = f"""You are an expert in Typescript,Angular,C#, and Blazor. Your task is to convert an Angular component consisting of an html file and a typescript file to an equilivelent Blazor Razor file and Blazor C# file. \
+    \
+    The Angular component to be converted will be delimited as in this example: \
+    ```typescript \
+    import {{ Component, Input, Output, EventEmitter }} from '@angular/core'; \
+    import {{ Product }} from '../products'; \
+    \
+    @Component({{ \
+        selector: 'app-product-alerts', \
+        templateUrl: './product-alerts.component.html',\
+        styleUrls: ['./product-alerts.component.css']\
+    }})\
+    export class ProductAlertsComponent {{\
+        @Input() product: Product | undefined;\
+        @Output() notify = new EventEmitter();\
+    }}\
+    ``` \
+    ```html \
+    <p *ngIf="product && product.price > 700"> \
+        <button type="button" (click)="notify.emit()">Notify Me</button> \
+    </p> \
+    ```
+    
+    the example typescript will be converted to c# and delimited in the output as follows: \
+    ```csharp \
+    using Microsoft.JSInterop; \
+    using System.Threading.Tasks; \
+    using Microsoft.AspNetCore.Components; \
+
+    namespace BlazorApp \
+    {{ \
+      public class ProductAlertsComponent : ComponentBase \
+      {{ \
+        [Inject] \
+        public IJSRuntime JSRuntime {{ get; set; }} \
+
+        [Parameter] \
+        public Product Product {{ get; set; }} \
+
+        [Parameter] \
+        public EventCallback<Product> Notify {{ get; set; }} \
+      }} \
+    }} \
+    ``` \
+    
+    the converted razor from the example should look like: \
+    ```razor
+    <p @if(Product != null && Product.price > 700)> \
+        <button type="button" @onclick="NotifyMe">Notify Me</button> \
+    </p> \
+    ```
+    
+    Use the following hints during the conversion process \ 
+    [Hint: Add the using statements such as Microsoft.JSInterop,System.Linq,Systems.Collections.Generic,System.Threading.Tasks,System,System.Net.Http,System.Reactive.Linq, Microsoft.AspNetCore.Components where appropriate]\
+    [Hint: No statements starting with @ should be in the code behind] \
+    [Hint: Make sure to add the # comment character to any lines that are meant as directions or examples and are not part of the converted component] \
+    [Hint: Use the same namespace in all of the generated files] \
+    
+    Here is the typescript for you to convert to C# \
+     ```typescript \
+    {typescript} \
+    ```
+    
+    and here is the html to convert to razor \
+    ```html \
+    {html} \
+    ``` \
+    """
+    _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.001, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
+
+    final_output = _output[0].split("### Response:")[1].strip()
+    return get_csharp_code(final_output), get_razor_code(final_output)
    
 
 def convert_to_razor(path,file_contents,tokenizer,model):
@@ -176,7 +310,7 @@ def convert_to_razor(path,file_contents,tokenizer,model):
     "[Hint: ngIf converts to @if]\n"+\
     "[Hint: The output should not include any @code sections]\n" + \
     file_contents
-    _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
+    _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.001, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
     final_output = _output[0].split("### Response:")[1].strip()
     return get_razor_code(final_output)
 
@@ -272,13 +406,13 @@ def generate_prompt(instruction, input=None):
 
 def main():
     load_8bit: bool = False
-    base_model: str = "C:/Users/Arti_BlizzardPV3/source/repos/text-generation-webui/models/TheBloke_WizardCoder-Python-13B-V1.0-GPTQ"
+    base_model: str = "C:/Users/budcr/source/repos/text-generation-webui/models/TheBloke_WizardCoder-Python-13B-V1.0-GPTQ"
     input_data_path = "Input.jsonl"
     output_data_path = "Output.jsonl"
     #source = input("Enter source directory: ")
     #destination = input("Enter destination directory: ")
-    src_dir = 'C:/Users/Arti_BlizzardPV3/source/repos/Example1'
-    dest_dir = 'C:/Users/Arti_BlizzardPV3/source/repos/BlazorExample1'
+    src_dir = 'C:/Users/budcr/source/repos/Example1'
+    dest_dir = 'C:/Users/budcr/source/repos/BlazorExample1'
 
    
 
@@ -289,7 +423,7 @@ def main():
 
     #create_project_file(dest_dir)
     #tokenizer = AutoTokenizer.from_pretrained(base_model,max_seq_len=12800)
-    tokenizer = AutoTokenizer.from_pretrained(base_model,use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(base_model,max_seq_len=12800,use_fast=True)
     
     print("start loading model...") 
     if device == "cuda":
