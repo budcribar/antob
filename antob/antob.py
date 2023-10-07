@@ -68,7 +68,9 @@ def convert_to_blazor_name(filename):
     # Replace the last part of the filename with the new name
     parts[-1] = blazor_name
     # Join the parts back together
-    return '\\'.join(parts)
+    result = '\\'.join(parts)
+    result = result.replace(".component","Component")
+    return result
 
 # def convert_to_blazor_name(filename):
 #     # Replace '-' with '_' and make the first letter of each segment uppercase
