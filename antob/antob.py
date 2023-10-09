@@ -262,7 +262,7 @@ def convert_angular_component(path,typescript,html,tokenizer,model):
 
     namespace BlazorApp \
     {{ \
-      public class ProductAlertsComponent : ComponentBase \
+      public partial class ProductAlertsComponent : ComponentBase \
       {{ \
         [Inject] \
         public IJSRuntime JSRuntime {{ get; set; }} \
@@ -284,12 +284,14 @@ def convert_angular_component(path,typescript,html,tokenizer,model):
     ```
     
     Use the following hints during the conversion process \ 
-    [Hint: Add the using statements such as Microsoft.JSInterop,System.Linq,Systems.Collections.Generic,System.Threading.Tasks,System,System.Net.Http,System.Reactive.Linq, Microsoft.AspNetCore.Components where appropriate]\
-    [Hint: No statements starting with @ should be in the code behind] \
+    [Hint: Add the using statements such as Microsoft.JSInterop,System.Linq,Systems.Collections.Generic,System.Threading.Tasks,System,System.Net.Http,System.Reactive.Linq, Microsoft.AspNetCore.Components,System.Net.Http.Json where appropriate]\
+    [Hint: No statements starting with @ should be in the generated csharp code] \
     [Hint: Make sure to add the # comment character to any lines that are meant as directions or examples and are not part of the converted component] \
     [Hint: Use the same namespace in all of the generated files] \
+    [Hint: Classes should be defined at the namespace level and not the Component level if they need to be used in the razor file]
     
     Here is the typescript for you to convert to C# \
+    [Hint: Angular statements starting with * should be converted to Razor statements starting with @] \
      ```typescript \
     {typescript} \
     ```
@@ -406,6 +408,80 @@ def generate_prompt(instruction, input=None):
 
 ### Response:"""
 
+
+import subprocess
+import glob
+def create_blazor_project(dest_dir):
+    project_name = os.path.basename(dest_dir)
+    project_dir = os.path.dirname(dest_dir)
+
+    os.makedirs(project_dir, exist_ok=True)
+    # Define the command
+    command = "dotnet new blazorwasm -o " + project_name
+
+    # Call the command
+    process = subprocess.Popen(command, shell=True, cwd=project_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    # Wait for the command to complete
+    stdout, stderr = process.communicate()
+
+    # Check if the command was successful
+    if process.returncode == 0:
+        print(f"Command executed successfully. Output: {stdout.decode()}")
+    else:
+        print(f"Command failed. Error: {stderr.decode()}")
+    
+    pages_dir = os.path.join(dest_dir, "Pages")
+    
+    files = glob.glob(os.path.join(pages_dir, "*"))
+    for file in files:
+        os.remove(file)
+    os.removedirs(pages_dir)
+    
+import re
+
+def parse_errors(output):
+    # Dictionary to hold filename: [list of errors]
+    error_dict = {}
+
+    # Split the output into lines
+    lines = output.split('\n')
+
+    # Regular expression to match error lines
+    error_regex = re.compile(r'(.*\.cs)\((\d+,\d+)\): error (.+): (.+) \[.+\]')
+
+    for line in lines:
+        match = error_regex.match(line)
+        if match:
+            # Extract relevant information from the regex match groups
+            file_path, location, error_code, error_message = match.groups()
+            # Append error message to list of errors for this file, creating a new list if necessary
+            error_dict.setdefault(file_path, []).append(f"{location} {error_code}: {error_message}")
+
+    return error_dict
+
+def compile_project(dest_dir):
+    # Define the command
+    command = "dotnet build"
+
+    # Call the command in the specified directory
+    process = subprocess.Popen(command, shell=True, cwd=dest_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    # Wait for the command to complete
+    stdout, stderr = process.communicate()
+
+    # Check if the command was successful
+    if process.returncode == 0:
+        print("Build succeeded.")
+    else:
+        print("Build failed. Errors:")
+        errors = parse_errors(stderr.decode())
+        for file, error_list in errors.items():
+            print(f"{file}:")
+            for error in error_list:
+                print(f"  {error}")
+
+
 def main():
     load_8bit: bool = False
     base_model: str = "C:/Users/budcr/source/repos/text-generation-webui/models/TheBloke_WizardCoder-Python-13B-V1.0-GPTQ"
@@ -414,9 +490,13 @@ def main():
     #source = input("Enter source directory: ")
     #destination = input("Enter destination directory: ")
     src_dir = 'C:/Users/budcr/source/repos/Example1'
-    dest_dir = 'C:/Users/budcr/source/repos/BlazorExample1'
+    dest_dir = 'C:/Users/budcr/source/repos/BlazorExample2'
 
-   
+    if os.path.isdir(dest_dir):
+        print(dest_dir, " exists.")
+    else:
+        create_blazor_project(dest_dir)
+        
 
 
     #copy_and_rename(src_dir, dest_dir)
@@ -450,9 +530,9 @@ def main():
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
 
-    process_files(src_dir,dest_dir,tokenizer,model)
+    #process_files(src_dir,dest_dir,tokenizer,model)
    
-
+    compile_project(dest_dir)
     
 
 if __name__ == '__main__':
