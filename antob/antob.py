@@ -408,6 +408,54 @@ def generate_prompt(instruction, input=None):
 
 ### Response:"""
 
+import xml.etree.ElementTree as ET
+import requests
+
+def get_latest_version(package_name):
+    url = f"https://api.nuget.org/v3/registration5-gz-semver2/{package_name}/index.json"
+    response = requests.get(url)
+    response.raise_for_status()  # Raise an exception for HTTP errors
+    data = response.json()
+    items = data.get('items', [])
+    if items:
+        catalog_entry = items[-1].get('catalogEntry', {})
+        version = catalog_entry.get('version')
+        if version:
+            return version
+        else:
+            raise Exception(f"No version information found for package {package_name}")
+    else:
+        raise Exception(f"No versions found for package {package_name}")
+    
+def add_package_reference(dest_dir, package_name,package_version):
+    #package_version = get_latest_version(package_name)
+    
+    proj_file = os.path.basename(dest_dir) + ".csproj"
+    csproj_path = os.path.join(dest_dir, proj_file)
+    # Parse the existing .csproj file
+    tree = ET.parse(csproj_path)
+    root = tree.getroot()
+
+    # Find the ItemGroup element
+    item_group = root.find('./ItemGroup')
+
+    if item_group is None:
+        # If not found, create a new ItemGroup element
+        item_group = ET.SubElement(root, 'ItemGroup')
+
+    # Create a new PackageReference element
+    package_ref = ET.SubElement(item_group, 'PackageReference')
+    package_ref.set('Include', package_name)
+    package_ref.set('Version', package_version)
+
+    # Write the updated .csproj file back to disk
+    tree.write(csproj_path, encoding='utf-8', xml_declaration=True)
+
+# Example usage:
+# csproj_path = 'path_to_your_project_file.csproj'
+# package_name = 'System.Reactive.Linq'
+# add_package_reference(csproj_path, package_name)
+
 
 import subprocess
 import glob
@@ -437,6 +485,8 @@ def create_blazor_project(dest_dir):
     for file in files:
         os.remove(file)
     os.removedirs(pages_dir)
+    
+    add_package_reference(dest_dir,"System.Reactive.Linq","6.0.0")
     
 import re
 
@@ -473,6 +523,7 @@ def compile_project(dest_dir):
     # Check if the command was successful
     if process.returncode == 0:
         print("Build succeeded.")
+        return None
     else:
         print("Build failed. Errors:")
         errors = parse_errors(stdout.decode())
@@ -480,7 +531,42 @@ def compile_project(dest_dir):
             print(f"{file}:")
             for error in error_list:
                 print(f"  {error}")
+        return errors
 
+def fix_cs(path,csharp,error_string,tokenizer,model):
+    print("converting",path) 
+    
+    prompt = f"""You are an expert in C# and Blazor. Your task is to fix the compile errors and output corrected code in its entirety \
+  
+     Here is the C# code\
+     ```csharp \
+    {csharp} \
+    ``` \
+    
+    Here are the compiler errors \
+    {error_string}
+    
+    Please delimit the output C# with the following tag \
+     ```csharp \
+     ``` \
+    """
+    
+    _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
+
+    final_output = _output[0].split("### Response:")[1].strip()
+    return get_csharp_code(final_output)
+
+def fix_errors(errors, dest_dir,tokenizer,model):
+    # ask model to fix errors
+    for file, error_list in errors.items():
+       if file.endswith(".razor.cs"):
+          print(f"Fixing errors in {file}:")
+          with open(file, 'r', encoding='utf-8') as f:
+             csharp = f.read()
+             error_string = '\n  '.join(error_list)
+             fixed = fix_cs(dest_dir,csharp,error_string,tokenizer,model)
+             with open(file, 'w', encoding='utf-8') as f:
+                f.write(fixed)
 
 def main():
     load_8bit: bool = False
@@ -532,7 +618,10 @@ def main():
 
     #process_files(src_dir,dest_dir,tokenizer,model)
    
-    compile_project(dest_dir)
+    errors = compile_project(dest_dir)
+    if errors is not None:
+        fix_errors (errors, dest_dir,tokenizer,model)
+        errors = compile_project(dest_dir)
     
 
 if __name__ == '__main__':
