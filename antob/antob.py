@@ -514,6 +514,10 @@ def parse_errors(output):
             # Append error message to list of errors for this file, creating a new list if necessary
             error_dict.setdefault(file_path, []).append(f"{location} {error_code}: {error_message}")
 
+    # Remove duplicates from each list in the dictionary
+    for file_path, errors in error_dict.items():
+        error_dict[file_path] = list(set(errors))
+
     return error_dict
 
 def compile_project(dest_dir):
