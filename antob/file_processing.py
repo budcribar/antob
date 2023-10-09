@@ -73,6 +73,7 @@ def process_files(src, dest,tokenizer,model):
                 else:
                     # If the file does not exist, assign an empty string
                     html_contents = ""
+                    destination = destination.replace(".razor","")
                     message = convert_to_cs(source,file_contents,tokenizer,model)
                     if(message != None):
                         # write the c# file
