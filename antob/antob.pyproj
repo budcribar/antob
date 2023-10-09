@@ -23,7 +23,12 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="antob.py" />
+    <Compile Include="compilation.py" />
+    <Compile Include="conversion.py" />
+    <Compile Include="file_processing.py" />
     <Compile Include="inference_wizardcoder.py" />
+    <Compile Include="project_creation.py" />
+    <Compile Include="utility.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="readme.md" />
