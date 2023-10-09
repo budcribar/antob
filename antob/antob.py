@@ -475,7 +475,7 @@ def compile_project(dest_dir):
         print("Build succeeded.")
     else:
         print("Build failed. Errors:")
-        errors = parse_errors(stderr.decode())
+        errors = parse_errors(stdout.decode())
         for file, error_list in errors.items():
             print(f"{file}:")
             for error in error_list:
