@@ -90,7 +90,7 @@ def process_files(src, dest,tokenizer,model):
     # Ensure the destination directory exists
     os.makedirs(dest, exist_ok=True)
 
-    skip_files = ['angular.json', 'package.json', 'editorconfig','.gitignore']
+    skip_files = ['angular.json', 'package.json', 'editorconfig','.gitignore', 'main.ts']
     convert_files = ['cart.component.ts']
     
     for root, dirs, files in os.walk(src):
@@ -459,6 +459,8 @@ def add_package_reference(dest_dir, package_name,package_version):
 
 import subprocess
 import glob
+import shutil
+
 def create_blazor_project(dest_dir):
     project_name = os.path.basename(dest_dir)
     project_dir = os.path.dirname(dest_dir)
@@ -487,6 +489,10 @@ def create_blazor_project(dest_dir):
     os.removedirs(pages_dir)
     
     add_package_reference(dest_dir,"System.Reactive.Linq","6.0.0")
+    
+    # TODO change the namespace in FormBuilder.cs
+    target_path = os.path.join(dest_dir, "FormBuilder.cs")
+    shutil.copy2("FormBuilder.cs", target_path)
     
 import re
 
@@ -536,9 +542,11 @@ def compile_project(dest_dir):
 def fix_cs(path,csharp,error_string,tokenizer,model):
     print("converting",path) 
     
-    prompt = f"""You are an expert in C# and Blazor. Your task is to fix the compile errors and output corrected code in its entirety \
+    prompt = f"""You are an expert in C# and Blazor. Your task is to fix the compiler errors and output corrected code in its entirety \
+    Use the following hints during the conversion process \
+    [Hint: Add the using statements such as Microsoft.JSInterop,System.Linq,Systems.Collections.Generic,System.Threading.Tasks,System,System.Net.Http,System.Reactive.Linq, Microsoft.AspNetCore.Components,System.Net.Http.Json where appropriate]\
   
-     Here is the C# code\
+     Here is the C# code used in a Blazor application\
      ```csharp \
     {csharp} \
     ``` \
@@ -546,7 +554,7 @@ def fix_cs(path,csharp,error_string,tokenizer,model):
     Here are the compiler errors \
     {error_string}
     
-    Please delimit the output C# with the following tag \
+    Please fix as many compiler errors as you can and delimit the output C# with the following tag \
      ```csharp \
      ``` \
     """
@@ -616,7 +624,7 @@ def main():
     if torch.__version__ >= "2" and sys.platform != "win32":
         model = torch.compile(model)
 
-    #process_files(src_dir,dest_dir,tokenizer,model)
+    process_files(src_dir,dest_dir,tokenizer,model)
    
     errors = compile_project(dest_dir)
     if errors is not None:
