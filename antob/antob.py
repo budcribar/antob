@@ -1,7 +1,7 @@
-
+# garage-bAInd/Platypus-30B
 # TheBloke/WizardCoder-Python-34B-V1.0-GGUF
 #wizardcoder-python-34b-v1.0.Q4_K_M.gguf
-
+# MMLU benchmark is the best to evaluate coding
 # command window
 # cd C:\ProgramData\anaconda3\condabin
 # pip install fire
@@ -11,7 +11,7 @@
 # python server.py
 # select model
 # load model
-# max seq len 12800 -> with new card and memory max_seq_len 9216
+# max seq len 12800 -> with new card and memory max_seq_len 9300
 # max_new_tokens 4096
 # temperature 0.01
 
