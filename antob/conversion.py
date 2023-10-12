@@ -115,20 +115,20 @@ def convert_to_cs(path,typescript,tokenizer,model):
     print("converting",path) 
     
     prompt = f"""You are an expert in Typescript,Angular,C#, and Blazor. Your task is to convert an Angular  typescript file to an equilivelent Blazor C# file. \
-    Use the following hints during the conversion process \
+    Please delimit the output C# with the following tag \
+     ```csharp \
+     ``` \
+     Use the following hints during the conversion process \
     [Hint: Add the using statements such as Microsoft.JSInterop,System.Linq,Systems.Collections.Generic,System.Threading.Tasks,System,System.Net.Http,System.Reactive.Linq, Microsoft.AspNetCore.Components,System.Net.Http.Json,Microsoft.AspNetCore.Components.WebAssembly.Hosting where appropriate]\
-    [Hint: Make sure to add the # comment character to any lines that are meant as directions or examples and are not part of the converted component] \
+    [Hint: Make sure to add the # comment character to any lines that are meant as directions,examples or notes and are not part of the converted component] \
     [Hint: Use the same namespace in all of the generated files] \
      Here is the typescript for you to convert to C# \
      ```typescript \
     {typescript} \
     ``` \
+     
     
-    Please delimit the output C# with the following tag \
-     ```csharp \
-     ``` \
     """
-    
     _output = evaluate(prompt, tokenizer, model, input=None, temperature=0.01, top_p=0.9, top_k=40, num_beams=1, max_new_tokens=1024)
 
     final_output = _output[0].split("### Response:")[1].strip()

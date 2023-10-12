@@ -97,7 +97,7 @@ def get_blazor_extension(extension):
 
 
 def get_csharp_code(string):
-  """Extracts the C# code between ```csharp` and ````` tags.
+  """Extracts the C# code between ```csharp` and ``` tags.
 
   Args:
     string: The string to extract the C# code from.
@@ -106,7 +106,7 @@ def get_csharp_code(string):
     A string containing the C# code, or None if no C# code is found.
   """
 
-  match = re.search(r"`csharp\n(.*?)\n`", string, re.DOTALL)
+  match = re.search(r"```csharp(.*?)```", string, re.DOTALL)
   if match:
     return match.group(1)
   else:
@@ -122,7 +122,7 @@ def get_razor_code(string):
     A string containing the Razorcode, or None if no Razor code is found.
   """
 
-  match = re.search(r"`razor\n(.*?)\n`", string, re.DOTALL)
+  match = re.search(r"```razor(.*?)```", string, re.DOTALL)
   if match:
     return match.group(1)
   else:

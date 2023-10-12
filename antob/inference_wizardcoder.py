@@ -1,6 +1,7 @@
 import sys
 import os
 import fire
+from huggingface_hub.constants import REPO_TYPES
 import torch
 import transformers
 import json
@@ -67,7 +68,7 @@ def generate_prompt(instruction, input=None):
 
 def main(
     load_8bit: bool = False,
-    base_model: str = "C:/Users/Arti_BlizzardPV3/source/repos/text-generation-webui/models/TheBloke_WizardCoder-Python-13B-V1.0-GPTQ",
+    base_model: str = "C:/Users/budcr/source/repos/text-generation-webui/models/TheBloke_WizardCoder-Python-13B-V1.0-GPTQ",
     input_data_path = "Input.jsonl",
     output_data_path = "Output.jsonl",
 ):
