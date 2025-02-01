@@ -7,7 +7,7 @@
             // source = input("Enter source directory: ")
             // destination = input("Enter destination directory: ")
             var src_dir = @"C:/Users/budcr/source/repos/Example1";
-            var dest_dir = @"C:/Users/budcr/source/repos/BlazorExample2";
+            var dest_dir = @"C:/Users/budcr/source/repos/BlazorExample";
 
             if (Directory.Exists(dest_dir))
             {
