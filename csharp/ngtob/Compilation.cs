@@ -1,10 +1,8 @@
-﻿using Microsoft.VisualBasic;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 
 public static class Compilation
 {
@@ -87,9 +85,9 @@ public static class Compilation
         return errors;
     }
 
-    public static void FixErrors(Dictionary<string, List<string>> errors, string destDir, Tokenizer tokenizer, Model model)
+    public static void FixErrors(Dictionary<string, List<string>> errors, string destDir)
     {
-        // Iterate through errors and fix those in .razor.cs files.
+        // For each file with errors, call FixCs to get a fixed version.
         foreach (var kvp in errors)
         {
             string file = kvp.Key;
@@ -98,7 +96,7 @@ public static class Compilation
                 Console.WriteLine("Fixing errors in " + file);
                 string csharp = File.ReadAllText(file);
                 string errorString = string.Join("\n  ", kvp.Value);
-                string fixedCode = Conversion.FixCs(destDir, csharp, errorString, tokenizer, model);
+                string fixedCode = Conversion.FixCs(destDir, csharp, errorString);
                 File.WriteAllText(file, fixedCode);
             }
         }

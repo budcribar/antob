@@ -5,32 +5,30 @@ using System.Linq;
 
 public static class FileProcessing
 {
-    public static void ProcessFiles(string src, string dest, Tokenizer tokenizer, Model model)
+    public static void ProcessFiles(string src, string dest)
     {
-        // Ensure destination directory exists
+        // Ensure the destination directory exists.
         Directory.CreateDirectory(dest);
 
         var skipFiles = new HashSet<string> { "angular.json", "package.json", "editorconfig", ".gitignore", "main.ts" };
         var convertFiles = new HashSet<string> { "cart.component.ts" };
 
-        ProcessDirectory(src, src, dest, tokenizer, model, skipFiles, convertFiles);
+        ProcessDirectory(src, src, dest, skipFiles, convertFiles);
     }
 
     private static void ProcessDirectory(
         string currentDir,
         string src,
         string dest,
-        Tokenizer tokenizer,
-        Model model,
         HashSet<string> skipFiles,
         HashSet<string> convertFiles)
     {
-        // Compute the relative path (and convert the name to Blazor style)
+        // Determine the relative path and convert it to Blazor naming convention.
         string relativePath = Utility.ConvertToBlazorName(Path.GetRelativePath(src, currentDir));
         string destCurrentDir = Path.Combine(dest, relativePath);
         Directory.CreateDirectory(destCurrentDir);
 
-        // Process subdirectories (skip any named "e2e")
+        // Process subdirectories (skip any named "e2e").
         var directories = Directory.GetDirectories(currentDir)
                                    .Where(d => Path.GetFileName(d) != "e2e")
                                    .ToArray();
@@ -39,16 +37,15 @@ public static class FileProcessing
             string convertedDirName = Utility.ConvertToBlazorName(Path.GetFileName(dir));
             string destSubDir = Path.Combine(destCurrentDir, convertedDirName);
             Directory.CreateDirectory(destSubDir);
-            ProcessDirectory(dir, src, dest, tokenizer, model, skipFiles, convertFiles);
+            ProcessDirectory(dir, src, dest, skipFiles, convertFiles);
         }
 
-        // Process files in this directory
+        // Process files in the current directory.
         var files = Directory.GetFiles(currentDir);
         foreach (var filePath in files)
         {
             string fileName = Path.GetFileName(filePath);
 
-            // Skip unwanted files (and files matching tsconfig*.json)
             if (skipFiles.Contains(fileName) ||
                 (fileName.StartsWith("tsconfig") && fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
             {
@@ -57,19 +54,17 @@ public static class FileProcessing
 
             string fileNameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
             string fileExt = Path.GetExtension(fileName);
-            // Convert file name to Blazor naming convention and extension (utility functions)
+            // Convert file name to Blazor naming convention.
             string blazorName = Utility.ConvertToBlazorName(fileNameWithoutExt) + Utility.GetBlazorExtension(fileExt);
 
             string source = filePath;
             string destination = Path.Combine(destCurrentDir, blazorName);
 
-            // If the file is a Razor file, skip it
-            if (string.Equals(fileExt, ".razor", StringComparison.OrdinalIgnoreCase))
+            if (fileExt.Equals(".razor", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            // For index.html, use a fixed destination name
             if (string.Equals(fileName, "index.html", StringComparison.OrdinalIgnoreCase))
             {
                 destination = Path.Combine(destCurrentDir, "index.html");
@@ -79,18 +74,17 @@ public static class FileProcessing
 
             if (destination.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
             {
-                // Look for an HTML file with the same base name
+                // Check for a corresponding HTML file.
                 string htmlFilename = Path.Combine(currentDir, fileNameWithoutExt + ".html");
                 if (File.Exists(htmlFilename))
                 {
                     string htmlContents = File.ReadAllText(htmlFilename);
-                    // Convert Angular component (returns a tuple: (csharp, razor))
-                    var message = Conversion.ConvertAngularComponent(source, fileContents, htmlContents, tokenizer, model);
+                    var message = Conversion.ConvertAngularComponent(source, fileContents, htmlContents);
                     if (message != null)
                     {
-                        // Write the generated C# file
+                        // Write the generated C# file.
                         File.WriteAllText(destination, message.Item1);
-                        // Write the generated Razor file
+                        // Write the generated Razor file.
                         string htmlFileNameOnly = Path.GetFileNameWithoutExtension(htmlFilename);
                         string blazorHtmlName = Utility.ConvertToBlazorName(htmlFileNameOnly) +
                                                   Utility.GetBlazorExtension(Path.GetExtension(htmlFilename));
@@ -100,9 +94,9 @@ public static class FileProcessing
                 }
                 else
                 {
-                    // If no HTML exists, call the conversion to C#
+                    // If there is no HTML file, convert TypeScript to C#.
                     destination = destination.Replace(".razor", "");
-                    string message = Conversion.ConvertToCs(source, fileContents, tokenizer, model);
+                    string message = Conversion.ConvertToCs(source, fileContents);
                     if (message != null)
                     {
                         File.WriteAllText(destination, message);
@@ -112,8 +106,7 @@ public static class FileProcessing
             }
             else if (destination.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
             {
-                // Convert HTML to Razor syntax
-                string message = Conversion.ConvertToRazor(source, fileContents, tokenizer, model);
+                string message = Conversion.ConvertToRazor(source, fileContents);
                 if (message != null)
                 {
                     File.WriteAllText(destination, message);
@@ -121,7 +114,7 @@ public static class FileProcessing
             }
             else
             {
-                // Otherwise, copy the file contents as is
+                // Otherwise, copy the file content as is.
                 File.WriteAllText(destination, fileContents);
             }
         }

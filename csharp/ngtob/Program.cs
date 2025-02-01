@@ -6,16 +6,24 @@
         {
             // source = input("Enter source directory: ")
             // destination = input("Enter destination directory: ")
-            var src_dir = @"C:/Users/budcr/source/repos/Example1";
-            var dest_dir = @"C:/Users/budcr/source/repos/BlazorExample";
+            var srcDir = @"C:/Users/budcr/source/repos/Example1";
+            var destDir = @"C:/Users/budcr/source/repos/BlazorExample";
 
-            if (Directory.Exists(dest_dir))
+            if (Directory.Exists(destDir))
             {
                 Console.WriteLine("Destination directory exists.");
+                Directory.Delete(destDir, recursive: true);
             }
-            else
+           
+            ProjectCreation.CreateBlazorProject(destDir);
+
+            FileProcessing.ProcessFiles(srcDir, destDir);
+
+            // Compile the project using dotnet build and then attempt to fix errors.
+            var errors = Compilation.CompileProject(destDir);
+            if (errors != null)
             {
-                ProjectCreation.CreateBlazorProject(dest_dir);
+                Compilation.FixErrors(errors, destDir);
             }
 
         }
