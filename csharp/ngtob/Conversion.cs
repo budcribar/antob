@@ -7,63 +7,46 @@ using System.Text.Json;
 
 public static class Conversion
 {
-    // Change this URL to point to your Ollama server endpoint.
-    private static readonly string OllamaUrl = "http://localhost:11434/complete";
+    // Endpoint URL for the Ollama server.
+    private static readonly string OllamaUrl = "http://localhost:11434/api/generate";
 
-    // Classes for serializing the request and deserializing the response.
-    private class OllamaRequest
-    {
-        public string prompt { get; set; }
-        public double temperature { get; set; }
-        public double top_p { get; set; }
-        public int top_k { get; set; }
-        public int num_beams { get; set; }
-        public int max_new_tokens { get; set; }
-    }
-
+    // Represents the expected response from the Ollama server.
     private class OllamaResponse
     {
         public string completion { get; set; }
     }
 
     /// <summary>
-    /// Sends a prompt to the Ollama server and returns the generated completion.
+    /// Sends a prompt to the Ollama server using a JSON body with "model", "prompt", and "stream" fields.
     /// </summary>
-    /// <param name="prompt">The prompt to send.</param>
-    /// <param name="temperature">Sampling temperature.</param>
-    /// <param name="topP">Top-p value.</param>
-    /// <param name="topK">Top-k value.</param>
-    /// <param name="numBeams">Beam count.</param>
-    /// <param name="maxNewTokens">Maximum new tokens to generate.</param>
-    /// <returns>A list containing the response string (typically one element).</returns>
-    public static List<string> Evaluate(string prompt, double temperature, double topP, int topK, int numBeams, int maxNewTokens)
+    /// <param name="prompt">The prompt text to send.</param>
+    /// <returns>A list containing the response completion.</returns>
+    public static string Evaluate(string prompt)
     {
-        using (HttpClient client = new HttpClient())
+        using (HttpClient client = new HttpClient { Timeout = TimeSpan.FromMinutes(1) })
         {
-            var requestObj = new OllamaRequest
+            // Build the JSON body as in your PowerShell script.
+            var requestObj = new
             {
+                model = "deepseek-r1:14b",  // Default model – change if needed.
                 prompt = prompt,
-                temperature = temperature,
-                top_p = topP,
-                top_k = topK,
-                num_beams = numBeams,
-                max_new_tokens = maxNewTokens
+                stream = false
             };
 
             string jsonRequest = JsonSerializer.Serialize(requestObj);
             var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
 
+            // Send the POST request.
             HttpResponseMessage response = client.PostAsync(OllamaUrl, content).GetAwaiter().GetResult();
             response.EnsureSuccessStatusCode();
-            string jsonResponse = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
-            var ollamaResponse = JsonSerializer.Deserialize<OllamaResponse>(jsonResponse);
-            return new List<string> { ollamaResponse.completion };
+            string jsonResponse = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            return jsonResponse;
         }
     }
 
     /// <summary>
-    /// Fixes C# code by sending it (with error messages) to the Ollama server.
+    /// Fixes C# code based on provided error messages by sending a prompt to Ollama.
     /// </summary>
     public static string FixCs(string path, string csharp, string errorString)
     {
@@ -78,8 +61,7 @@ public static class Conversion
             "Please fix as many compiler errors as you can and delimit the output C# with the following tag:\n" +
             "```csharp\n```\n";
 
-        var output = Evaluate(prompt, temperature: 0.01, topP: 0.9, topK: 40, numBeams: 1, maxNewTokens: 1024);
-        string finalOutput = ParseResponse(output.FirstOrDefault());
+        var finalOutput = Evaluate(prompt);
         return Utility.GetCSharpCode(finalOutput);
     }
 
@@ -100,13 +82,12 @@ public static class Conversion
             "Here is the TypeScript for you to convert to C#:\n" +
             "```typescript\n" + typescript + "\n```\n";
 
-        var output = Evaluate(prompt, temperature: 0.01, topP: 0.9, topK: 40, numBeams: 1, maxNewTokens: 1024);
-        string finalOutput = ParseResponse(output.FirstOrDefault());
+        var finalOutput = Evaluate(prompt);
         return Utility.GetCSharpCode(finalOutput);
     }
 
     /// <summary>
-    /// Converts an Angular component (TypeScript and HTML) into a Blazor component (C# and Razor).
+    /// Converts an Angular component (with TypeScript and HTML) into Blazor C# and Razor files.
     /// </summary>
     public static Tuple<string, string> ConvertAngularComponent(string path, string typescript, string html)
     {
@@ -115,18 +96,18 @@ public static class Conversion
             $"You are an expert in Typescript, Angular, C#, and Blazor. Your task is to convert an Angular component consisting of an HTML file and a TypeScript file to an equivalent Blazor Razor file and Blazor C# file. " +
             "\nThe Angular component to be converted will be delimited as in this example:\n" +
             "```typescript\n" +
-            "import {{ Component, Input, Output, EventEmitter }} from '@angular/core';\n" +
-            "import {{ Product }} from '../products';\n" +
+            "import { Component, Input, Output, EventEmitter } from '@angular/core';\n" +
+            "import { Product } from '../products';\n" +
             "\n" +
-            "@Component({{\n" +
+            "@Component({\n" +
             "    selector: 'app-product-alerts',\n" +
             "    templateUrl: './product-alerts.component.html',\n" +
             "    styleUrls: ['./product-alerts.component.css']\n" +
-            "}})\n" +
-            "export class ProductAlertsComponent {{\n" +
+            "})\n" +
+            "export class ProductAlertsComponent {\n" +
             "    @Input() product: Product | undefined;\n" +
             "    @Output() notify = new EventEmitter();\n" +
-            "}}\n" +
+            "}\n" +
             "```\n" +
             "```html\n" +
             "<p *ngIf=\"product && product.price > 700\">\n" +
@@ -140,19 +121,19 @@ public static class Conversion
             "using Microsoft.AspNetCore.Components;\n" +
             "\n" +
             "namespace BlazorApp\n" +
-            "{{\n" +
+            "{\n" +
             "  public partial class ProductAlertsComponent : ComponentBase\n" +
-            "  {{\n" +
+            "  {\n" +
             "    [Inject]\n" +
-            "    public IJSRuntime JSRuntime {{ get; set; }}\n" +
+            "    public IJSRuntime JSRuntime { get; set; }\n" +
             "\n" +
             "    [Parameter]\n" +
-            "    public Product Product {{ get; set; }}\n" +
+            "    public Product Product { get; set; }\n" +
             "\n" +
             "    [Parameter]\n" +
-            "    public EventCallback<Product> Notify {{ get; set; }}\n" +
-            "  }}\n" +
-            "}}\n" +
+            "    public EventCallback<Product> Notify { get; set; }\n" +
+            "  }\n" +
+            "}\n" +
             "```\n" +
             "The converted Razor from the example should look like:\n" +
             "```razor\n" +
@@ -172,15 +153,15 @@ public static class Conversion
             "And here is the HTML to convert to Razor:\n" +
             "```html\n" + html + "\n```\n";
 
-        var output = Evaluate(prompt, temperature: 0.001, topP: 0.9, topK: 40, numBeams: 1, maxNewTokens: 1024);
-        string response = ParseResponse(output.FirstOrDefault());
+        var response = Evaluate(prompt);
+       
         string csharpCode = Utility.GetCSharpCode(response);
         string razorCode = Utility.GetRazorCode(response);
         return Tuple.Create(csharpCode, razorCode);
     }
 
     /// <summary>
-    /// Converts Angular HTML code into a Blazor Razor file.
+    /// Converts Angular HTML code to a Blazor Razor file.
     /// </summary>
     public static string ConvertToRazor(string path, string fileContents)
     {
@@ -190,13 +171,12 @@ public static class Conversion
                         "[Hint: ngIf converts to @if]\n" +
                         "[Hint: The output should not include any @code sections]\n" +
                         fileContents;
-        var output = Evaluate(prompt, temperature: 0.001, topP: 0.9, topK: 40, numBeams: 1, maxNewTokens: 1024);
-        string finalOutput = ParseResponse(output.FirstOrDefault());
+        var finalOutput = Evaluate(prompt);
         return Utility.GetRazorCode(finalOutput);
     }
 
     /// <summary>
-    /// Parses the response by looking for a delimiter ("### Response:") and returns the trimmed result.
+    /// Parses the response to extract the generated code.
     /// </summary>
     private static string ParseResponse(string response)
     {
