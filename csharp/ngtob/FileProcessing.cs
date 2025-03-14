@@ -83,13 +83,14 @@ public static class FileProcessing
                     if (message != null)
                     {
                         // Write the generated C# file.
-                        File.WriteAllText(destination, message.Item1);
+                        File.WriteAllLines(destination, message.Item1.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None));
+
                         // Write the generated Razor file.
                         string htmlFileNameOnly = Path.GetFileNameWithoutExtension(htmlFilename);
                         string blazorHtmlName = Utility.ConvertToBlazorName(htmlFileNameOnly) +
                                                   Utility.GetBlazorExtension(Path.GetExtension(htmlFilename));
                         string razorDestination = Path.Combine(destCurrentDir, blazorHtmlName);
-                        File.WriteAllText(razorDestination, message.Item2);
+                        File.WriteAllLines(razorDestination, message.Item2.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None));
                     }
                 }
                 else

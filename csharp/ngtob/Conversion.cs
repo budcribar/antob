@@ -23,7 +23,7 @@ public static class Conversion
     /// <returns>A list containing the response completion.</returns>
     public static string Evaluate(string prompt)
     {
-        using (HttpClient client = new HttpClient { Timeout = TimeSpan.FromMinutes(1) })
+        using (HttpClient client = new HttpClient { Timeout = TimeSpan.FromMinutes(3) })
         {
             // Build the JSON body as in your PowerShell script.
             var requestObj = new
@@ -93,65 +93,77 @@ public static class Conversion
     {
         Console.WriteLine("Converting Angular component for " + path);
         string prompt =
-            $"You are an expert in Typescript, Angular, C#, and Blazor. Your task is to convert an Angular component consisting of an HTML file and a TypeScript file to an equivalent Blazor Razor file and Blazor C# file. " +
-            "\nThe Angular component to be converted will be delimited as in this example:\n" +
-            "```typescript\n" +
-            "import { Component, Input, Output, EventEmitter } from '@angular/core';\n" +
-            "import { Product } from '../products';\n" +
-            "\n" +
-            "@Component({\n" +
-            "    selector: 'app-product-alerts',\n" +
-            "    templateUrl: './product-alerts.component.html',\n" +
-            "    styleUrls: ['./product-alerts.component.css']\n" +
-            "})\n" +
-            "export class ProductAlertsComponent {\n" +
-            "    @Input() product: Product | undefined;\n" +
-            "    @Output() notify = new EventEmitter();\n" +
-            "}\n" +
-            "```\n" +
-            "```html\n" +
-            "<p *ngIf=\"product && product.price > 700\">\n" +
-            "    <button type=\"button\" (click)=\"notify.emit()\">Notify Me</button>\n" +
-            "</p>\n" +
-            "```\n" +
-            "The example TypeScript will be converted to C# and delimited in the output as follows:\n" +
-            "```csharp\n" +
-            "using Microsoft.JSInterop;\n" +
-            "using System.Threading.Tasks;\n" +
-            "using Microsoft.AspNetCore.Components;\n" +
-            "\n" +
-            "namespace BlazorApp\n" +
-            "{\n" +
-            "  public partial class ProductAlertsComponent : ComponentBase\n" +
-            "  {\n" +
-            "    [Inject]\n" +
-            "    public IJSRuntime JSRuntime { get; set; }\n" +
-            "\n" +
-            "    [Parameter]\n" +
-            "    public Product Product { get; set; }\n" +
-            "\n" +
-            "    [Parameter]\n" +
-            "    public EventCallback<Product> Notify { get; set; }\n" +
-            "  }\n" +
-            "}\n" +
-            "```\n" +
-            "The converted Razor from the example should look like:\n" +
-            "```razor\n" +
-            "<p @if(Product != null && Product.price > 700)>\n" +
-            "    <button type=\"button\" @onclick=\"NotifyMe\">Notify Me</button>\n" +
-            "</p>\n" +
-            "```\n" +
-            "Use the following hints during the conversion process:\n" +
-            "[Hint: Add the using statements such as Microsoft.JSInterop, System.Linq, System.Collections.Generic, System.Threading.Tasks, System, System.Net.Http, System.Reactive.Linq, Microsoft.AspNetCore.Components, System.Net.Http.Json where appropriate]\n" +
-            "[Hint: No statements starting with @ should be in the generated C# code]\n" +
-            "[Hint: Make sure to add the # comment character to any lines that are meant as directions or examples and are not part of the converted component]\n" +
-            "[Hint: Use the same namespace in all of the generated files]\n" +
-            "[Hint: Classes should be defined at the namespace level and not the Component level if they need to be used in the Razor file]\n" +
-            "Here is the TypeScript for you to convert to C#:\n" +
-            "[Hint: Angular statements starting with * should be converted to Razor statements starting with @]\n" +
-            "```typescript\n" + typescript + "\n```\n" +
-            "And here is the HTML to convert to Razor:\n" +
-            "```html\n" + html + "\n```\n";
+            """
+            
+            You are an expert in Typescript, Angular, C#, and Blazor. Your task is to convert an Angular component consisting of an HTML file and a TypeScript file to an equivalent Blazor Razor file and Blazor C# file. 
+            The Angular component to be converted will be delimited as in this example:
+            
+            ```typescript
+            import { Component, Input, Output, EventEmitter } from '@angular/core';
+            import { Product } from '../products';
+           
+            @Component({
+                selector: 'app-product-alerts',
+                templateUrl: './product-alerts.component.html',
+                styleUrls: ['./product-alerts.component.css']
+            })
+            export class ProductAlertsComponent {
+                @Input() product: Product | undefined;
+                @Output() notify = new EventEmitter();
+            } 
+            ```
+            ```html
+            <p *ngIf=\"product && product.price > 700\">
+                <button type=\"button\" (click)=\"notify.emit()\">Notify Me</button>
+            </p>
+            ```
+            The example TypeScript will be converted to C# and delimited in the output as follows:
+            ```csharp
+            using Microsoft.JSInterop;
+            using System.Threading.Tasks;
+            using Microsoft.AspNetCore.Components;
+            
+            namespace BlazorApp
+            {
+              public partial class ProductAlertsComponent : ComponentBase
+              {
+                [Inject]
+                public IJSRuntime JSRuntime { get; set; }
+          
+                [Parameter]
+                public Product Product { get; set; }
+           
+                [Parameter]
+                public EventCallback<Product> Notify { get; set; }
+              }
+            }
+            ```
+            The converted Razor from the example should look like:
+            ```razor
+            <p @if(Product != null && Product.price > 700)>
+                <button type=\"button\" @onclick=\"NotifyMe\">Notify Me</button>
+            </p>
+            ```
+            Use the following hints during the conversion process:
+            [Hint: Add the using statements such as Microsoft.JSInterop, System.Linq, System.Collections.Generic, System.Threading.Tasks, System, System.Net.Http, System.Reactive.Linq, Microsoft.AspNetCore.Components, System.Net.Http.Json where appropriate]
+            [Hint: No statements starting with @ should be in the generated C# code]
+            [Hint: Make sure to add the # comment character to any lines that are meant as directions or examples and are not part of the converted component]
+            [Hint: Use the same namespace in all of the generated files]
+            [Hint: Classes should be defined at the namespace level and not the Component level if they need to be used in the Razor file]
+            Here is the TypeScript for you to convert to C#:
+            [Hint: Angular statements starting with * should be converted to Razor statements starting with @]
+            ```typescript
+            
+            """ + typescript + """
+            ```
+            """ + """
+            
+            And here is the HTML to convert to Razor:
+            ```html
+            
+            """ 
+            + html 
+            + """```""";
 
         var response = Evaluate(prompt);
        
